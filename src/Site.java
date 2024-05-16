@@ -1,3 +1,5 @@
+import java.util.Objects;
+
 public class Site {
     private int i;
     private int j;
@@ -20,10 +22,18 @@ public class Site {
         int j2 = w.j();
         return Math.abs(i1 - i2) + Math.abs(j1 - j2);
     }
+    // Overriding equals object to compare the object itself not the reference -Jo
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        Site site = (Site) o;
+        return i == site.i && j == site.j;
+    }
 
-    // does invoking site equal site w?
-    public boolean equals(Site w) {
-        return (manhattanTo(w) == 0);
+    // Override hashCode method
+    @Override
+    public int hashCode() {
+        return Objects.hash(i, j);
     }
 
 }

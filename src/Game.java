@@ -11,7 +11,7 @@ public class Game {
     private int N;               // board dimension
     private Site monsterSite;    // location of monster
     private Site rogueSite;      // location of rogue
-    private Monster monster;     // the monster
+    private Monster monster;    // the monster
     private Rogue rogue;         // the rogue
 
     // initialize board from file
@@ -97,7 +97,7 @@ public class Game {
 
 
     public static void main(String[] args) {
-        In stdin = new In("./Dungeons/dungeonB.txt");
+        In stdin = new In("./Dungeons/dungeonA.txt");
         Game game = new Game(stdin);
         System.out.println(game);
         game.play();

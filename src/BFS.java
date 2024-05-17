@@ -10,7 +10,7 @@ public class BFS{
     private Dungeon dungeon;
     private Game game;
 
-    public BFS(Dungeon dungeon){
+    public BFS(Dungeon dungeon, Game game){ //kayanya sini lu lupa taro constructor buat game jo jadi gw taro
         this.dungeon = dungeon;
         this.game = game;
     }

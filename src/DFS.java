@@ -10,56 +10,53 @@ public class DFS {
         this.game = game;
     }
 
-    // Method to check if there's a cycle in the corridor graph
-    public boolean canFindCorridorCycle() {
-        Site rogueSite = game.getRogueSite();
+    // Method to check if there's a cycle in the corridor graph starting from a given site
+    public boolean canFindCorridorCycle(Site start) {
         boolean[][] visited = new boolean[dungeon.size()][dungeon.size()];
-        return dfsCycle(rogueSite, rogueSite, visited, 0);
+        return dfsCycle(start, null, visited);
     }
 
-    private boolean dfsCycle(Site current, Site parent, boolean[][] visited, int depth) {
+    private boolean dfsCycle(Site current, Site parent, boolean[][] visited) {
         visited[current.i()][current.j()] = true;
 
         for (Site neighbor : getNeighbors(current)) {
             if (dungeon.isCorridor(neighbor)) {
                 if (!visited[neighbor.i()][neighbor.j()]) {
-                    if (dfsCycle(neighbor, current, visited, depth + 1)) {
+                    if (dfsCycle(neighbor, current, visited)) {
+                        System.out.println("Cycle detected at: " + neighbor);
                         return true;
                     }
-                } else if (!neighbor.equals(parent) && depth > 1) {
-                    System.out.println("Corridor cycle detected at: (" + neighbor.i() + ", " + neighbor.j() + ")");
+                } else if (!neighbor.equals(parent)) {
+                    System.out.println("Cycle detected at: " + neighbor);
                     return true; // Found a cycle
                 }
             }
         }
-        visited[current.i()][current.j()] = false;
         return false;
     }
 
-    // Method to find the farthest path from rogue to monster
-    public List<Site> farthestPathFromRogueToMonster() {
-        Site rogueSite = game.getRogueSite();
-        Site monsterSite = game.getMonsterSite();
+    // Method to find the longest path within a cycle
+    public List<Site> farthestPathInCycle(Site start) {
         boolean[][] visited = new boolean[dungeon.size()][dungeon.size()];
         List<Site> path = new ArrayList<>();
         List<Site> longestPath = new ArrayList<>();
-        dfsLongestPath(rogueSite, monsterSite, visited, path, longestPath);
+        dfsLongestPathInCycle(start, start, visited, path, longestPath);
         return longestPath;
     }
 
-    private void dfsLongestPath(Site current, Site target, boolean[][] visited, List<Site> path, List<Site> longestPath) {
+    private void dfsLongestPathInCycle(Site current, Site start, boolean[][] visited, List<Site> path, List<Site> longestPath) {
         visited[current.i()][current.j()] = true;
         path.add(current);
 
-        if (current.equals(target)) {
+        if (current.equals(start) && path.size() > 1) {
             if (path.size() > longestPath.size()) {
                 longestPath.clear();
                 longestPath.addAll(new ArrayList<>(path));
             }
         } else {
             for (Site neighbor : getNeighbors(current)) {
-                if (!visited[neighbor.i()][neighbor.j()] && dungeon.isLegalMove(current, neighbor)) {
-                    dfsLongestPath(neighbor, target, visited, path, longestPath);
+                if (!visited[neighbor.i()][neighbor.j()] && dungeon.isCorridor(neighbor)) {
+                    dfsLongestPathInCycle(neighbor, start, visited, path, longestPath);
                 }
             }
         }
@@ -79,27 +76,5 @@ public class DFS {
             }
         }
         return neighbors;
-    }
-
-    // Method to find the longest path within a cycle
-    public void dfsLongestPathInCycle(Site current, Site start, boolean[][] visited, List<Site> path, List<Site> longestPath) {
-        visited[current.i()][current.j()] = true;
-        path.add(current);
-
-        if (current.equals(start) && path.size() > 1) {
-            if (path.size() > longestPath.size()) {
-                longestPath.clear();
-                longestPath.addAll(new ArrayList<>(path));
-            }
-        } else {
-            for (Site neighbor : getNeighbors(current)) {
-                if (!visited[neighbor.i()][neighbor.j()] && dungeon.isLegalMove(current, neighbor)) {
-                    dfsLongestPathInCycle(neighbor, start, visited, path, longestPath);
-                }
-            }
-        }
-
-        path.remove(path.size() - 1);
-        visited[current.i()][current.j()] = false;
     }
 }

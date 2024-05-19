@@ -27,13 +27,18 @@ public class Site {
     public boolean equals(Object o) {
         if (this == o) return true;
         Site site = (Site) o;
-        return i == site.i && j == site.j;
+        return Objects.equals(i, site.i) && Objects.equals(j, site.j);
     }
 
     // Override hashCode method
     @Override
     public int hashCode() {
         return Objects.hash(i, j);
+    }
+
+    @Override
+    public String toString(){
+        return "Site(" + i + ", " + j +")";
     }
 
 }

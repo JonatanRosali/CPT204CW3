@@ -1,63 +1,117 @@
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 public class Rogue {
     private Game game;
     private Dungeon dungeon;
-    private DFS dfs;
+    private int N;
 
     public Rogue(Game game) {
         this.game = game;
         this.dungeon = game.getDungeon();
-        this.dfs = new DFS(dungeon, game);
+        this.N = dungeon.size();
     }
 
-    // Take a step to maximize the distance from the monster or move to a neighboring room if no cycle exists
+    // Return the next move for the rogue
     public Site move() {
-        Site currentSite = game.getRogueSite();
-        System.out.println("Rogue current position: (" + currentSite.i() + ", " + currentSite.j() + ")");
-        
-        // Check if there's a corridor cycle the rogue can use
-        if (dfs.canFindCorridorCycle()) {
-            System.out.println("Corridor cycle found, trying to move in cycle.");
-            List<Site> path = farthestPathInCycle(currentSite);
-            if (path != null && path.size() > 1) {
-                System.out.println("Rogue moving in cycle to: (" + path.get(1).i() + ", " + path.get(1).j() + ")");
-                return path.get(1); // Move to the next step in the path
-            } else {
-                System.out.println("No valid path found in cycle.");
-            }
-        } else {
-            System.out.println("No corridor cycle found. Moving to neighboring room farthest from the monster.");
-            // Move to the neighboring room farthest from the monster
-            List<Site> neighbors = getNeighbors(currentSite);
-            Site farthestNeighbor = null;
-            int maxDistance = -1;
-            for (Site neighbor : neighbors) {
-                int distance = neighbor.manhattanTo(game.getMonsterSite());
-                if (distance > maxDistance && dungeon.isRoom(neighbor)) {
-                    maxDistance = distance;
-                    farthestNeighbor = neighbor;
+        Site rogue = game.getRogueSite();
+        Site monster = game.getMonsterSite();
+
+        // Prioritize moving to a corridor if not already on one
+        if (!dungeon.isCorridor(rogue)) {
+            List<Site> pathToCorridor = bfsToCorridor(rogue, monster);
+            if (pathToCorridor != null && pathToCorridor.size() > 1) {
+                Site nextMove = pathToCorridor.get(1);
+                if (dungeon.isLegalMove(rogue, nextMove)) {
+                    return nextMove;
                 }
             }
-            if (farthestNeighbor != null) {
-                System.out.println("Rogue moving to farthest neighboring room: (" + farthestNeighbor.i() + ", " + farthestNeighbor.j() + ")");
-                return farthestNeighbor;
-            } else {
-                System.out.println("No neighboring room found.");
-            }
         }
-        
-        System.out.println("Rogue stays in the same place.");
-        return currentSite; // Stay in the same place if no path found
+
+        // If already on a corridor or no corridor found, move within the corridors or rooms
+        return moveWithinCorridorOrRoom(rogue, monster);
     }
 
-    private List<Site> farthestPathInCycle(Site currentSite) {
-        boolean[][] visited = new boolean[dungeon.size()][dungeon.size()];
+    // BFS to find the shortest path to the nearest corridor
+    private List<Site> bfsToCorridor(Site start, Site monster) {
+        boolean[][] visited = new boolean[N][N];
+        Queue<Site> queue = new LinkedList<>();
+        Map<Site, Site> parentMap = new HashMap<>();
+
+        queue.offer(start);
+        visited[start.i()][start.j()] = true;
+
+        List<Site> bestPath = null;
+        int maxDistance = -1;
+
+        while (!queue.isEmpty()) {
+            Site current = queue.poll();
+
+            // Check if this site is a corridor
+            if (dungeon.isCorridor(current)) {
+                int distanceToMonster = current.manhattanTo(monster);
+                if (distanceToMonster > maxDistance) {
+                    maxDistance = distanceToMonster;
+                    bestPath = reconstructPath(parentMap, start, current);
+                }
+            }
+
+            // Explore neighbors
+            for (Site neighbor : getNeighbors(current)) {
+                if (!visited[neighbor.i()][neighbor.j()] && dungeon.isLegalMove(current, neighbor)) {
+                    visited[neighbor.i()][neighbor.j()] = true;
+                    queue.offer(neighbor);
+                    parentMap.put(neighbor, current); // Keep track of parent to reconstruct the path
+                }
+            }
+        }
+
+        return bestPath; // Return the best path found to a different corridor entrance
+    }
+
+    private List<Site> reconstructPath(Map<Site, Site> parentMap, Site start, Site end) {
         List<Site> path = new ArrayList<>();
-        List<Site> longestPath = new ArrayList<>();
-        dfs.dfsLongestPathInCycle(currentSite, currentSite, visited, path, longestPath);
-        return longestPath;
+        Site current = end;
+        while (!current.equals(start)) {
+            path.add(current);
+            current = parentMap.get(current);
+        }
+        path.add(start);
+        Collections.reverse(path);
+        return path;
+    }
+
+    // Move within the corridor or room while keeping away from the monster
+    private Site moveWithinCorridorOrRoom(Site rogue, Site monster) {
+        List<Site> neighbors = getNeighbors(rogue);
+        Site bestMove = null;
+        int maxDistance = -1;
+
+        for (Site neighbor : neighbors) {
+            if (dungeon.isLegalMove(rogue, neighbor)) {
+                int distance = neighbor.manhattanTo(monster);
+                if (distance > maxDistance) {
+                    maxDistance = distance;
+                    bestMove = neighbor;
+                }
+            }
+        }
+
+        return bestMove != null ? bestMove : randomMove(rogue);
+    }
+
+    // Choose a random legal move
+    private Site randomMove(Site rogue) {
+        List<Site> neighbors = getNeighbors(rogue);
+        List<Site> legalMoves = new ArrayList<>();
+        for (Site neighbor : neighbors) {
+            if (dungeon.isLegalMove(rogue, neighbor)) {
+                legalMoves.add(neighbor);
+            }
+        }
+        if (legalMoves.isEmpty()) {
+            return rogue; // Stay in place if no move is possible
+        }
+        return legalMoves.get((int) (Math.random() * legalMoves.size()));
     }
 
     private List<Site> getNeighbors(Site site) {
@@ -66,7 +120,7 @@ public class Rogue {
         for (int[] dir : directions) {
             int i = site.i() + dir[0];
             int j = site.j() + dir[1];
-            if (i >= 0 && i < dungeon.size() && j >= 0 && j < dungeon.size() && !dungeon.isWall(new Site(i, j))) {
+            if (i >= 0 && i < N && j >= 0 && j < N && !dungeon.isWall(new Site(i, j))) {
                 neighbors.add(new Site(i, j));
             }
         }

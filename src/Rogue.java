@@ -55,7 +55,7 @@ public class Rogue {
         visited[start.i()][start.j()] = true;
 
         List<Site> bestPath = null;
-        int maxDistance = -1;
+        int bestDistanceToMonster = Integer.MIN_VALUE; // Prefer paths with greater distance from the monster
 
         while (!queue.isEmpty()) {
             Site current = queue.poll();
@@ -63,8 +63,8 @@ public class Rogue {
             // Check if this site is a corridor
             if (dungeon.isCorridor(current)) {
                 int distanceToMonster = current.manhattanTo(monster);
-                if (distanceToMonster > maxDistance) {
-                    maxDistance = distanceToMonster;
+                if (distanceToMonster > bestDistanceToMonster) {
+                    bestDistanceToMonster = distanceToMonster;
                     bestPath = reconstructPath(parentMap, start, current);
                 }
             }
@@ -79,7 +79,7 @@ public class Rogue {
             }
         }
 
-        return bestPath; // Return the best path found to a different corridor entrance
+        return bestPath; // Return the path that maximizes distance from the monster
     }
 
     private List<Site> reconstructPath(Map<Site, Site> parentMap, Site start, Site end) {

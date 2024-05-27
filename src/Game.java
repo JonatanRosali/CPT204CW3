@@ -209,7 +209,7 @@ public class Game {
                 option = Integer.parseInt(gameMode);
                 validInput = true;
             } else {
-                System.out.println("Invalid option. Please input the correct option (1-3).");
+                System.out.println("Invalid option. Please input the correct option (1-3):");
             }
         }
 
@@ -235,7 +235,7 @@ public class Game {
                 isEasy = false;
                 validInput = true;
             } else {
-                System.out.println("Invalid option. Please input the correct option (1-2).");
+                System.out.println("Invalid option. Please input the correct option (1-2): ");
             }
         }
 
@@ -259,23 +259,39 @@ public class Game {
     }
 
     public static void main(String[] args) {
-        welcomeDisplay();
-        char dungeon = chooseDungeon();
-        In stdin = new In("./Dungeons/dungeon" + dungeon + ".txt");
-        moveInstruction();
-
-        int option = gameModeSelection();
-        boolean monsterEasy = false;
-        boolean rogueEasy = false;
-
-        if (option == 1) {
-            rogueEasy = difficultySelection();
-        } else if (option == 2) {
-            monsterEasy = difficultySelection();
+        while (true) {
+            welcomeDisplay();
+            char dungeon = chooseDungeon();
+            In stdin = new In("./Dungeons/dungeon" + dungeon + ".txt");
+            moveInstruction();
+    
+            int option = gameModeSelection();
+            boolean monsterEasy = false;
+            boolean rogueEasy = false;
+    
+            if (option == 1) {
+                rogueEasy = difficultySelection();
+            } else if (option == 2) {
+                monsterEasy = difficultySelection();
+            }
+    
+            Game game = new Game(stdin, monsterEasy, rogueEasy);
+            System.out.println(game);
+            game.play(option, monsterEasy, rogueEasy);
+            System.out.println("Play again? (Y/N): ");
+            
+            boolean validInput = false;
+            while (!validInput) {
+                String choice = kb.nextLine().toUpperCase();
+                if (choice.equals("Y")) {
+                    validInput = true;
+                } else if (choice.equals("N")) {
+                    System.out.println("We hope to see you again! Goodbye!");
+                    return;
+                } else {
+                    System.out.println("Invalid option. Please input the correct option (Y/N): ");
+                }
+            }
         }
-
-        Game game = new Game(stdin, monsterEasy, rogueEasy);
-        System.out.println(game);
-        game.play(option, monsterEasy, rogueEasy);
     }
 }

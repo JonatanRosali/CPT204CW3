@@ -7,6 +7,8 @@ public class Rogue {
     private int N;
     private Scanner kb = new Scanner(System.in);
     private static Map<String, int[]> directionMap = new HashMap<>();
+    private Site bestEntrance = null;
+    private List<Site> pathToBestEntrance = new ArrayList<>();
 
     static {
         directionMap.put("Q", new int[]{-1, -1}); // North West
@@ -52,84 +54,183 @@ public class Rogue {
         return legalMoves.get((int) (Math.random() * legalMoves.size()));
     }
 
-    // Intelligent move logic for difficult difficulty
+    // Intelligent move for the rogue
     private Site intelligentMove() {
-        Site rogue = game.getRogueSite();
-        Site monster = game.getMonsterSite();
+        Site rogueSite = game.getRogueSite();
+        Site monsterSite = game.getMonsterSite();
 
-        // Prioritize moving to a corridor if not already on one
-        if (!dungeon.isCorridor(rogue)) {
-            List<Site> pathToCorridor = bfsToCorridor(rogue, monster);
-            if (pathToCorridor != null && pathToCorridor.size() > 1) {
-                Site nextMove = pathToCorridor.get(1);
-                if (dungeon.isLegalMove(rogue, nextMove)) {
-                    return nextMove;
+        // If the rogue is in a corridor, check if there's a loop
+        if (dungeon.isCorridor(rogueSite)) {
+            return moveInCorridor(rogueSite, monsterSite);
+        }
+
+        // Find corridor entrances using BFS
+        List<Site> corridorEntrances = findCorridorEntrances(rogueSite);
+        System.out.println("Corridor Entrances: " + corridorEntrances);
+
+        // Check for loops or cycles at each entrance using DFS
+        bestEntrance = null;
+        pathToBestEntrance.clear();
+        int minDistanceToEntrance = Integer.MAX_VALUE;
+
+        for (Site entrance : corridorEntrances) {
+            if (hasCycle(entrance)) {
+                int distanceRogueToEntrance = bfsDistance(rogueSite, entrance);
+                int distanceMonsterToEntrance = bfsDistance(monsterSite, entrance);
+
+                // Prioritize moving towards the entrance if the rogue is closer to it than the monster
+                if (distanceRogueToEntrance < distanceMonsterToEntrance) {
+                    if (distanceRogueToEntrance < minDistanceToEntrance) {
+                        minDistanceToEntrance = distanceRogueToEntrance;
+                        bestEntrance = entrance;
+                        pathToBestEntrance = findPath(rogueSite, entrance);
+                    }
                 }
             }
         }
 
-        // If already on a corridor or no corridor found, move within the corridors or rooms
-        return moveWithinCorridorOrRoom(rogue, monster);
+        // If a valid entrance with a loop is found, move towards it
+        if (bestEntrance != null) {
+            System.out.println("Moving towards best entrance: " + bestEntrance);
+            return pathToBestEntrance.get(1); // Move to the next step along the path
+        }
+
+        // If no valid entrance is found, move to maximize distance from the monster
+        return moveToMaximizeDistance(rogueSite, monsterSite);
     }
 
-    // BFS to find the shortest path to the nearest corridor
-    private List<Site> bfsToCorridor(Site start, Site monster) {
-        boolean[][] visited = new boolean[N][N];
+    // Move within the corridor to maximize distance from the monster
+    private Site moveInCorridor(Site rogueSite, Site monsterSite) {
+        // Prioritize finding loops within the corridor
+        if (hasCycle(rogueSite)) {
+            List<Site> neighbors = getNeighbors(rogueSite);
+            Site bestMove = rogueSite;
+            int maxDistance = bfsDistance(rogueSite, monsterSite);
+
+            for (Site neighbor : neighbors) {
+                if (dungeon.isLegalMove(rogueSite, neighbor)) {
+                    int distance = bfsDistance(neighbor, monsterSite);
+                    if (distance > maxDistance) {
+                        maxDistance = distance;
+                        bestMove = neighbor;
+                    }
+                }
+            }
+            return bestMove;
+        }
+
+        // If no loop is found within the current corridor, look for another corridor with a loop
+        return moveToAnotherCorridor(rogueSite, monsterSite);
+    }
+
+    // Move to another corridor if no loop is found in the current corridor
+    private Site moveToAnotherCorridor(Site rogueSite, Site monsterSite) {
+        // Find corridor entrances
+        List<Site> corridorEntrances = findCorridorEntrances(rogueSite);
+        System.out.println("Corridor Entrances: " + corridorEntrances);
+
+        // Choose the safest corridor entrance with a loop
+        bestEntrance = null;
+        pathToBestEntrance.clear();
+        int minDistanceToEntrance = Integer.MAX_VALUE;
+
+        for (Site entrance : corridorEntrances) {
+            if (hasCycle(entrance)) {
+                int distanceRogueToEntrance = bfsDistance(rogueSite, entrance);
+                int distanceMonsterToEntrance = bfsDistance(monsterSite, entrance);
+
+                // Prioritize moving towards the entrance if the rogue is closer to it than the monster
+                if (distanceRogueToEntrance < distanceMonsterToEntrance) {
+                    if (distanceRogueToEntrance < minDistanceToEntrance) {
+                        minDistanceToEntrance = distanceRogueToEntrance;
+                        bestEntrance = entrance;
+                        pathToBestEntrance = findPath(rogueSite, entrance);
+                    }
+                }
+            }
+        }
+
+        // If a valid entrance with a loop is found, move towards it
+        if (bestEntrance != null) {
+            System.out.println("Moving towards another corridor with loop: " + bestEntrance);
+            return pathToBestEntrance.get(1); // Move to the next step along the path
+        }
+
+        // If no valid entrance is found, move to maximize distance from the monster
+        return moveToMaximizeDistance(rogueSite, monsterSite);
+    }
+
+    // Find corridor entrances using BFS
+    private List<Site> findCorridorEntrances(Site start) {
         Queue<Site> queue = new LinkedList<>();
-        Map<Site, Site> parentMap = new HashMap<>();
-
-        queue.offer(start);
-        visited[start.i()][start.j()] = true;
-
-        List<Site> bestPath = null;
-        int bestDistanceToMonster = Integer.MIN_VALUE; // Prefer paths with greater distance from the monster
+        Set<Site> visited = new HashSet<>();
+        List<Site> corridorEntrances = new ArrayList<>();
+        queue.add(start);
+        visited.add(start);
 
         while (!queue.isEmpty()) {
             Site current = queue.poll();
-
-            // Check if this site is a corridor
-            if (dungeon.isCorridor(current)) {
-                int distanceToMonster = current.manhattanTo(monster);
-                if (distanceToMonster > bestDistanceToMonster) {
-                    bestDistanceToMonster = distanceToMonster;
-                    bestPath = reconstructPath(parentMap, start, current);
-                }
-            }
-
-            // Explore neighbors
             for (Site neighbor : getNeighbors(current)) {
-                if (!visited[neighbor.i()][neighbor.j()] && dungeon.isLegalMove(current, neighbor)) {
-                    visited[neighbor.i()][neighbor.j()] = true;
-                    queue.offer(neighbor);
-                    parentMap.put(neighbor, current); // Keep track of parent to reconstruct the path
+                if (!visited.contains(neighbor) && dungeon.isLegalMove(current, neighbor)) {
+                    visited.add(neighbor);
+                    queue.add(neighbor);
+                    if (isCorridorEntrance(neighbor)) {
+                        corridorEntrances.add(neighbor);
+                    }
                 }
             }
         }
 
-        return bestPath; // Return the path that maximizes distance from the monster
+        return corridorEntrances;
     }
 
-    private List<Site> reconstructPath(Map<Site, Site> parentMap, Site start, Site end) {
-        List<Site> path = new ArrayList<>();
-        Site current = end;
-        while (!current.equals(start)) {
-            path.add(current);
-            current = parentMap.get(current);
+    // Check if a site is a corridor entrance
+    private boolean isCorridorEntrance(Site site) {
+        if (dungeon.isCorridor(site)) {
+            List<Site> neighbors = getNeighbors(site);
+            for (Site neighbor : neighbors) {
+                if (dungeon.isRoom(neighbor)) {
+                    return true;
+                }
+            }
         }
-        path.add(start);
-        Collections.reverse(path);
-        return path;
+        return false;
     }
 
-    // Move within the corridor or room while keeping away from the monster
-    private Site moveWithinCorridorOrRoom(Site rogue, Site monster) {
-        List<Site> neighbors = getNeighbors(rogue);
-        Site bestMove = null;
-        int maxDistance = -1;
+    // Check if a corridor entrance has a cycle using DFS
+    private boolean hasCycle(Site entrance) {
+        Set<Site> visited = new HashSet<>();
+        Stack<Site> stack = new Stack<>();
+        stack.push(entrance);
+        visited.add(entrance);
+
+        while (!stack.isEmpty()) {
+            Site current = stack.pop();
+            for (Site neighbor : getNeighbors(current)) {
+                if (dungeon.isLegalMove(current, neighbor)) {
+                    if (visited.contains(neighbor) && neighbor.equals(entrance)) {
+                        return true; // Cycle found
+                    }
+                    if (!visited.contains(neighbor)) {
+                        visited.add(neighbor);
+                        stack.push(neighbor);
+                    }
+                }
+            }
+        }
+
+        return false; // No cycle found
+    }
+
+    // Move to the farthest node from the monster
+    private Site moveToMaximizeDistance(Site rogueSite, Site monsterSite) {
+        List<Site> neighbors = getNeighbors(rogueSite);
+        Site bestMove = rogueSite;
+        int maxDistance = bfsDistance(rogueSite, monsterSite);
 
         for (Site neighbor : neighbors) {
-            if (dungeon.isLegalMove(rogue, neighbor)) {
-                int distance = neighbor.manhattanTo(monster);
+            if (dungeon.isLegalMove(rogueSite, neighbor)) {
+                int distance = bfsDistance(neighbor, monsterSite);
                 if (distance > maxDistance) {
                     maxDistance = distance;
                     bestMove = neighbor;
@@ -137,20 +238,89 @@ public class Rogue {
             }
         }
 
-        return bestMove != null ? bestMove : rogue;
+        System.out.println("Move to maximize distance: " + bestMove);
+        return bestMove;
     }
 
+    // Get neighbors for a site
     private List<Site> getNeighbors(Site site) {
-        int[][] directions = { { -1, 0 }, { 1, 0 }, { 0, -1 }, { 0, 1 }, { -1, -1 }, { -1, 1 }, { 1, -1 }, { 1, 1 } }; // N, S, W, E, NW, NE, SW, SE
+        int[][] directions = { {-1, 0}, {1, 0}, {0, -1}, {0, 1}, {-1, -1}, {-1, 1}, {1, -1}, {1, 1} }; // N, S, W, E, NW, NE, SW, SE
         List<Site> neighbors = new ArrayList<>();
         for (int[] dir : directions) {
             int i = site.i() + dir[0];
             int j = site.j() + dir[1];
-            if (i >= 0 && i < N && j >= 0 && j < N && !dungeon.isWall(new Site(i, j))) {
-                neighbors.add(new Site(i, j));
+            Site neighbor = new Site(i, j);
+            if (i >= 0 && i < N && j >= 0 && j < N && !dungeon.isWall(neighbor)) {
+                neighbors.add(neighbor);
             }
         }
         return neighbors;
+    }
+
+    // BFS to calculate distance from a given site to the monster
+    private int bfsDistance(Site start, Site goal) {
+        Queue<Site> queue = new LinkedList<>();
+        Set<Site> visited = new HashSet<>();
+        queue.add(start);
+        visited.add(start);
+        int distance = 0;
+
+        while (!queue.isEmpty()) {
+            int size = queue.size();
+            for (int i = 0; i < size; i++) {
+                Site current = queue.poll();
+                if (current.equals(goal)) {
+                    return distance;
+                }
+                for (Site neighbor : getNeighbors(current)) {
+                    if (!visited.contains(neighbor) && dungeon.isLegalMove(current, neighbor)) {
+                        queue.add(neighbor);
+                        visited.add(neighbor);
+                    }
+                }
+            }
+            distance++;
+        }
+        return distance;
+    }
+
+    // Find path from start to goal using BFS
+    private List<Site> findPath(Site start, Site goal) {
+        Queue<Site> queue = new LinkedList<>();
+        Map<Site, Site> cameFrom = new HashMap<>();
+        Set<Site> visited = new HashSet<>();
+        queue.add(start);
+        visited.add(start);
+        cameFrom.put(start, null);
+
+        while (!queue.isEmpty()) {
+            Site current = queue.poll();
+            if (current.equals(goal)) {
+                return reconstructPath(cameFrom, start, current);
+            }
+            for (Site neighbor : getNeighbors(current)) {
+                if (!visited.contains(neighbor) && dungeon.isLegalMove(current, neighbor)) {
+                    queue.add(neighbor);
+                    visited.add(neighbor);
+                    cameFrom.put(neighbor, current);
+                }
+            }
+        }
+        return new ArrayList<>(); // No path found
+    }
+
+    // Reconstruct path from the cameFrom map
+    private List<Site> reconstructPath(Map<Site, Site> cameFrom, Site start, Site end) {
+        List<Site> path = new ArrayList<>();
+        Site current = end;
+        while (!current.equals(start)) {
+            path.add(current);
+            current = cameFrom.get(current);
+        }
+        path.add(start);
+        Collections.reverse(path);
+        System.out.println("Reconstructed path: " + path);
+        return path;
     }
 
     public Site userMove() {

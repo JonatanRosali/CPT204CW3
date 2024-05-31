@@ -1,4 +1,4 @@
-import java.util.Objects;
+import java.util.*;
 
 public class Site {
     private int i;
@@ -22,6 +22,7 @@ public class Site {
         int j2 = w.j();
         return Math.abs(i1 - i2) + Math.abs(j1 - j2);
     }
+
     // Overriding equals object to compare the object itself not the reference -Jo
     @Override
     public boolean equals(Object o) {
@@ -38,7 +39,23 @@ public class Site {
 
     @Override
     public String toString(){
-        return "Site(" + i + ", " + j +")";
+        return "Site(" + i + ", " + j + ")";
     }
 
+    public List<Site> getNeighbors(Dungeon dungeon) {
+        int[][] directions = {
+            {-1, 0}, {1, 0}, {0, -1}, {0, 1}, 
+            {-1, -1}, {-1, 1}, {1, -1}, {1, 1}
+        }; // N, S, W, E, NW, NE, SW, SE
+        List<Site> neighbors = new ArrayList<>();
+        int N = dungeon.size();
+        for (int[] dir : directions) {
+            int i = this.i + dir[0];
+            int j = this.j + dir[1];
+            if (i >= 0 && i < N && j >= 0 && j < N && !dungeon.isWall(new Site(i, j))) {
+                neighbors.add(new Site(i, j));
+            }
+        }
+        return neighbors;
+    }
 }

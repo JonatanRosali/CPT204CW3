@@ -1,35 +1,14 @@
 import java.util.*;
 
-public class Monster {
-    private Game game;
-    private Dungeon dungeon;
-    private boolean isEasy;
-    private int N;
+public class Monster extends Characters implements Movable{
     private BFS bfs;
-    private Scanner kb = new Scanner(System.in);
-    private static Map<String, int[]> directionMap = new HashMap<>();
-
-    static {
-        directionMap.put("Q", new int[]{-1, -1}); // North West
-        directionMap.put("W", new int[]{-1, 0});  // North
-        directionMap.put("E", new int[]{-1, 1});  // North East
-        directionMap.put("A", new int[]{0, -1});  // West
-        directionMap.put("S", new int[]{0, 0});   // Stay
-        directionMap.put("D", new int[]{0, 1});   // East
-        directionMap.put("Z", new int[]{1, -1});  // South West
-        directionMap.put("X", new int[]{1, 0});   // South
-        directionMap.put("C", new int[]{1, 1});   // South East
-    }
 
     public Monster(Game game, boolean isEasy) {
-        this.game = game;
-        this.dungeon = game.getDungeon();
-        this.isEasy = isEasy;
+        super(game, isEasy);
         this.bfs = new BFS(dungeon);
-        this.N = dungeon.size();
     }
 
-    // Take a step towards the rogue using BFS to find the shortest path
+    @Override
     public Site move() {
         if (isEasy) {
             return randomMove();
@@ -38,65 +17,41 @@ public class Monster {
         }
     }
 
-    public Site userMove() {
-        System.out.println("Enter your move (Q, W, E, A, S, D, Z, X, C):");
-        String move;
-        int[] directions;
-
-        while (true) {
-            move = kb.nextLine().toUpperCase();
-            directions = directionMap.get(move);
-            if (directions != null) {
-                break;
-            } else {
-                System.out.println("Invalid input. Please enter a valid move (Q, W, E, A, S, D, Z, X, C):");
-            }
-        }
-
-        Site currentSite = game.getMonsterSite();  // Assuming you are moving a monster
-        Site userMove = new Site(currentSite.i() + directions[0], currentSite.j() + directions[1]);
-        if (dungeon.isLegalMove(currentSite, userMove)) {
-            return userMove;
-        }
-        System.out.println("Oops! You Hit A Wall");
-        return currentSite;
+    @Override
+    protected Site getCurrentSite() {
+        return game.getMonsterSite();
     }
 
-    // Choose a random legal move
-    private Site randomMove() {
-        Site monsterSite = game.getMonsterSite();
-        List<Site> neighbors = getNeighbors(monsterSite);
-        List<Site> legalMoves = new ArrayList<>();
-        for (Site neighbor : neighbors) {
-            if (dungeon.isLegalMove(monsterSite, neighbor)) {
-                legalMoves.add(neighbor);
-            }
-        }
-        if (legalMoves.isEmpty()) {
-            return monsterSite; // Stay in place if no move is possible
-        }
-        return legalMoves.get((int) (Math.random() * legalMoves.size()));
-    }
-
-    // Intelligent move logic for difficult difficulty
     private Site intelligentMove() {
-        List<Site> path = bfs.findShortestPath(game.getMonsterSite(), game.getRogueSite());
-        if (path != null && path.size() > 1) {
-            return path.get(1); // Move to the next step in the path
-        }
-        return game.getMonsterSite(); // Stay in the same place if no path found
-    }
+        Site monsterSite = getCurrentSite();
+        Site rogueSite = game.getRogueSite();
 
-    private List<Site> getNeighbors(Site site) {
-        int[][] directions = { { -1, 0 }, { 1, 0 }, { 0, -1 }, { 0, 1 }, { -1, -1 }, { -1, 1 }, { 1, -1 }, { 1, 1 } }; // N, S, W, E, NW, NE, SW, SE
-        List<Site> neighbors = new ArrayList<>();
-        for (int[] dir : directions) {
-            int i = site.i() + dir[0];
-            int j = site.j() + dir[1];
-            if (i >= 0 && i < N && j >= 0 && j < N && !dungeon.isWall(new Site(i, j))) {
-                neighbors.add(new Site(i, j));
+        List<Site> monsterNeighbors = getNeighbors(monsterSite);
+
+        Site bestNeighbor = null;
+        int bestDistance = Integer.MAX_VALUE;
+        for (Site neighbor : monsterNeighbors) {
+            int distance = neighbor.manhattanTo(rogueSite);
+            if (dungeon.isLegalMove(monsterSite, neighbor) && distance < bestDistance) {
+                bestDistance = distance;
+                bestNeighbor = neighbor;
             }
         }
-        return neighbors;
+
+        List<Site> bfsPath = bfs.findShortestPath(monsterSite, rogueSite);
+
+        int bfsDistance = Integer.MAX_VALUE;
+        if (bfsPath != null && bfsPath.size() > 1) {
+            Site bfsNextStep = bfsPath.get(1);
+            bfsDistance = bfsNextStep.manhattanTo(rogueSite);
+        }
+
+        if (bestNeighbor != null && bestDistance < bfsDistance) {
+            return bestNeighbor;
+        } else if (bfsPath != null && bfsPath.size() > 1) {
+            return bfsPath.get(1);
+        }
+
+        return monsterSite;
     }
 }

@@ -66,79 +66,41 @@ public class Game {
 
     // play until monster catches the rogue
     public void play(int option, boolean monsterEasy, boolean rogueEasy) {
-        switch (option) {
-            case 1:
-                for (int t = 1; true; t++) {
-                    System.out.println("Move " + t);
-                    System.out.println();
-
-                    // monster moves
-                    if (monsterSite.equals(rogueSite)) break;
-                    Site next = monster.userMove();
-                    if (dungeon.isLegalMove(monsterSite, next)) monsterSite = next;
-                    else throw new RuntimeException("Monster caught cheating");
-                    System.out.println(this);
-
-                    // rogue moves
-                    if (monsterSite.equals(rogueSite)) break;
-                    next = rogue.move();
-                    if (dungeon.isLegalMove(rogueSite, next)) rogueSite = next;
-                    else throw new RuntimeException("Rogue caught cheating");
-                    System.out.println(this);
-                }
-
-                System.out.println("Caught by monster");
-                break;
-            case 2:
-                for (int t = 1; true; t++) {
-                    System.out.println("Move " + t);
-                    System.out.println();
-
-                    // monster moves
-                    if (monsterSite.equals(rogueSite)) break;
-                    Site next = monster.move();
-                    if (dungeon.isLegalMove(monsterSite, next)) monsterSite = next;
-                    else throw new RuntimeException("Monster caught cheating");
-                    System.out.println(this);
-
-                    // rogue moves
-                    if (monsterSite.equals(rogueSite)) break;
-                    next = rogue.userMove();
-                    if (dungeon.isLegalMove(rogueSite, next)) rogueSite = next;
-                    else throw new RuntimeException("Rogue caught cheating");
-                    System.out.println(this);
-                }
-
-                System.out.println("Caught by monster");
-                break;
-
-            case 3:
-                for (int t = 1; true; t++) {
-                    System.out.println("Move " + t);
-                    System.out.println();
-
-                    // monster moves
-                    if (monsterSite.equals(rogueSite)) break;
-                    Site next = monster.move();
-                    if (dungeon.isLegalMove(monsterSite, next)) monsterSite = next;
-                    else throw new RuntimeException("Monster caught cheating");
-                    System.out.println(this);
-
-                    // rogue moves
-                    if (monsterSite.equals(rogueSite)) break;
-                    next = rogue.move();
-                    if (dungeon.isLegalMove(rogueSite, next)) rogueSite = next;
-                    else throw new RuntimeException("Rogue caught cheating");
-                    System.out.println(this);
-                }
-
-                System.out.println("Caught by monster");
-                break;
-            default:
-                System.out.println("Game is Corrupted, Please Restart The Game!");
-                break;
+        boolean gameOver = false;
+    
+        for (int t = 1; !gameOver; t++) {
+            System.out.println("Move " + t);
+            System.out.println();
+    
+            // Monster moves
+            if (monsterSite.equals(rogueSite)) break;
+            Site next = option == 1 ? monster.userMove() : monster.move();
+            if (dungeon.isLegalMove(monsterSite, next)) {
+                monsterSite = next;
+            } else {
+                throw new RuntimeException("Monster caught cheating");
+            }
+            System.out.println(this);
+    
+            // Rogue moves
+            if (monsterSite.equals(rogueSite)) break;
+            next = option == 2 ? rogue.userMove() : rogue.move();
+            if (dungeon.isLegalMove(rogueSite, next)) {
+                rogueSite = next;
+            } else {
+                throw new RuntimeException("Rogue caught cheating");
+            }
+            System.out.println(this);
+    
+            // Check if game over
+            if (monsterSite.equals(rogueSite)) {
+                gameOver = true;
+            }
         }
+    
+        System.out.println("Caught by monster");
     }
+    
 
     // string representation of game state (inefficient because of Site and string concat)
     public String toString() {

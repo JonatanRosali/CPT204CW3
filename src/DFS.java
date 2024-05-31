@@ -1,80 +1,77 @@
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 
 public class DFS {
     private Dungeon dungeon;
-    private Game game;
 
-    public DFS(Dungeon dungeon, Game game) {
+    public DFS(Dungeon dungeon) {
         this.dungeon = dungeon;
-        this.game = game;
     }
 
-    // Method to check if there's a cycle in the corridor graph starting from a given site
-    public boolean canFindCorridorCycle(Site start) {
-        boolean[][] visited = new boolean[dungeon.size()][dungeon.size()];
-        return dfsCycle(start, null, visited);
-    }
+    // Method to check for loops using DFS, restricted to corridors
+    public boolean hasCycleInCorridor(Site entrance) {
+        Set<Site> visited = new HashSet<>();
+        Stack<Site> stack = new Stack<>();
 
-    private boolean dfsCycle(Site current, Site parent, boolean[][] visited) {
-        visited[current.i()][current.j()] = true;
-
-        for (Site neighbor : getNeighbors(current)) {
+        // Start by adding corridor neighbors of the entrance to the stack
+        for (Site neighbor : entrance.getNeighbors(dungeon)) {
             if (dungeon.isCorridor(neighbor)) {
-                if (!visited[neighbor.i()][neighbor.j()]) {
-                    if (dfsCycle(neighbor, current, visited)) {
-                        System.out.println("Cycle detected at: " + neighbor);
-                        return true;
+                stack.push(neighbor);
+                visited.add(neighbor);
+                break; // Only need to start with one corridor neighbor
+            }
+        }
+
+        while (!stack.isEmpty()) {
+            Site current = stack.pop();
+            for (Site neighbor : current.getNeighbors(dungeon)) {
+                if (dungeon.isCorridor(neighbor) && dungeon.isLegalMove(current, neighbor)) {
+                    if (neighbor.equals(entrance) && visited.contains(neighbor)) {
+                        return true; // Cycle found
                     }
-                } else if (!neighbor.equals(parent)) {
-                    System.out.println("Cycle detected at: " + neighbor);
-                    return true; // Found a cycle
-                }
-            }
-        }
-        return false;
-    }
-
-    // Method to find the longest path within a cycle
-    public List<Site> farthestPathInCycle(Site start) {
-        boolean[][] visited = new boolean[dungeon.size()][dungeon.size()];
-        List<Site> path = new ArrayList<>();
-        List<Site> longestPath = new ArrayList<>();
-        dfsLongestPathInCycle(start, start, visited, path, longestPath);
-        return longestPath;
-    }
-
-    private void dfsLongestPathInCycle(Site current, Site start, boolean[][] visited, List<Site> path, List<Site> longestPath) {
-        visited[current.i()][current.j()] = true;
-        path.add(current);
-
-        if (current.equals(start) && path.size() > 1) {
-            if (path.size() > longestPath.size()) {
-                longestPath.clear();
-                longestPath.addAll(new ArrayList<>(path));
-            }
-        } else {
-            for (Site neighbor : getNeighbors(current)) {
-                if (!visited[neighbor.i()][neighbor.j()] && dungeon.isCorridor(neighbor)) {
-                    dfsLongestPathInCycle(neighbor, start, visited, path, longestPath);
+                    if (!visited.contains(neighbor)) {
+                        visited.add(neighbor);
+                        stack.push(neighbor);
+                    }
                 }
             }
         }
 
-        path.remove(path.size() - 1);
-        visited[current.i()][current.j()] = false;
+        return false; // No cycle found
     }
 
-    private List<Site> getNeighbors(Site site) {
-        int[][] directions = { { -1, 0 }, { 1, 0 }, { 0, -1 }, { 0, 1 }, { -1, -1 }, { -1, 1 }, { 1, -1 }, { 1, 1 } }; // N, S, W, E, NW, NE, SW, SE
-        List<Site> neighbors = new ArrayList<>();
-        for (int[] dir : directions) {
-            int i = site.i() + dir[0];
-            int j = site.j() + dir[1];
-            if (i >= 0 && i < dungeon.size() && j >= 0 && j < dungeon.size() && !dungeon.isWall(new Site(i, j))) {
-                neighbors.add(new Site(i, j));
+    // Method to check for loops using DFS, including rooms
+    public boolean hasCycleIncludingRooms(Site entrance) {
+        Set<Site> visited = new HashSet<>();
+        Stack<Site> stack = new Stack<>();
+
+        // Add only the corridor neighbors of the entrance to the stack
+        for (Site neighbor : entrance.getNeighbors(dungeon)) {
+            if (dungeon.isCorridor(neighbor)) {
+                stack.push(neighbor);
+                visited.add(neighbor);
             }
         }
-        return neighbors;
+
+        while (!stack.isEmpty()) {
+            Site current = stack.pop();
+            for (Site neighbor : current.getNeighbors(dungeon)) {
+                // Only traverse corridors and rooms, avoid revisiting the entrance directly from rooms
+                if ((dungeon.isCorridor(neighbor) || dungeon.isRoom(neighbor)) && dungeon.isLegalMove(current, neighbor)) {
+                    // Ensure we do not traverse directly from the entrance to a room
+                    if (current.equals(entrance) && dungeon.isRoom(neighbor)) {
+                        continue;
+                    }
+                    if (neighbor.equals(entrance) && visited.contains(neighbor)) {
+                        return true; // Cycle found
+                    }
+                    if (!visited.contains(neighbor)) {
+                        visited.add(neighbor);
+                        stack.push(neighbor);
+                    }
+                }
+            }
+        }
+
+        return false; // No cycle found
     }
 }
